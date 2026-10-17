@@ -59,7 +59,7 @@ def load_data(file_name, default_value):
                 cur.execute("SELECT json_data FROM sfn_app_state WHERE key_name = %s", (file_name,))
                 row = cur.fetchone()
                 if row and row is not None:
-                    return row[0] if isinstance(row, tuple) else row
+                    return row if isinstance(row, tuple) else row
             save_data(file_name, default_value)
             return default_value
         except Exception:
@@ -117,36 +117,43 @@ if st.sidebar.button("🗑️ مسح كافة المنتجات والبيانا�
     st.sidebar.success("تم مسح المخزون بالكامل بنجاح وتصفير الموقع!")
     st.rerun()
 
-# ميزة رفع المخزون الجديد بالكامل عبر ملف Excel / CSV
-st.sidebar.subheader("📤 رفع مخزون جديد بالكامل (Excel)")
-uploaded_file = st.sidebar.file_uploader("اختر ملف المخزون الجديد:", type=["xlsx", "csv"])
+# ميزة الرفع الذكي للمخزون الجديد (يدعم Excel, CSV, TSV)
+st.sidebar.subheader("📤 رفع مخزون جديد بالكامل")
+uploaded_file = st.sidebar.file_uploader("اختر ملف المخزون الجديد:", type=["xlsx", "csv", "tsv", "txt"])
 
 if uploaded_file is not None:
     try:
+        # تحديد طريقة القراءة بناءً على نوع الملف المرفوع تلقائياً
         if uploaded_file.name.endswith('.csv'):
             df = pd.read_csv(uploaded_file)
+        elif uploaded_file.name.endswith('.tsv') or uploaded_file.name.endswith('.txt'):
+            df = pd.read_csv(uploaded_file, sep='\t')
         else:
-            df = pd.read_excel(uploaded_file)
+            df = pd.read_excel(uploaded_file, engine='calamine')
             
+        # تحويل أسماء الأعمدة إلى حروف صغيرة وإزالة الفراغات لضمان التعرف عليها بأي شكل
+        df.columns = [str(col).strip().lower() for col in df.columns]
+        
         required_cols = ['id', 'name', 'balance', 'cost', 'price', 'expiry', 'min_balance']
         if all(col in df.columns for col in required_cols):
             if st.sidebar.button("🔄 اعتماد وتحديث المخزون الجديد"):
                 new_inventory = {}
                 for _, row in df.iterrows():
-                    new_inventory[str(row['id']).strip()] = {
+                    p_id = str(row['id']).strip()
+                    new_inventory[p_id] = {
                         "name": str(row['name']).strip(),
-                        "balance": int(row['balance']),
-                        "expiry": str(row['expiry']).strip(),
-                        "cost": float(row['cost']),
-                        "price": float(row['price']),
-                        "min_balance": int(row['min_balance'])
+                        "balance": int(pd.to_numeric(row['balance'], errors='coerce') or 0),
+                        "expiry": str(row['expiry']).strip() if pd.notna(row['expiry']) else "غير محدد",
+                        "cost": float(pd.to_numeric(row['cost'], errors='coerce') or 0.0),
+                        "price": float(pd.to_numeric(row['price'], errors='coerce') or 0.0),
+                        "min_balance": int(pd.to_numeric(row['min_balance'], errors='coerce') or 100)
                     }
                 st.session_state["inventory"] = new_inventory
                 save_data(DATA_FILE, new_inventory)
-                st.sidebar.success("✅ تم تحديث المستودع بالكامل بناءً على الملف الجديد!")
+                st.sidebar.success("✅ تم تحديث المستودع بالكامل بناءً على ملفك!")
                 st.rerun()
         else:
-            st.sidebar.error(f"تأكد من احتواء الملف على الأعمدة التالية: {required_cols}")
+            st.sidebar.error("❌ تأكد أن ملفك يحتوي على العناوين التالية في السطر الأول تماماً: id, name, balance, cost, price, expiry, min_balance")
     except Exception as e:
         st.sidebar.error(f"خطأ أثناء قراءة الملف: {str(e)}")
 
