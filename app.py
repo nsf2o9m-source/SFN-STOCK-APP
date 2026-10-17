@@ -117,7 +117,7 @@ if st.sidebar.button("🗑️ مسح كافة المنتجات والبيانا�
     st.sidebar.success("تم مسح المخزون بالكامل بنجاح وتصفير الموقع!")
     st.rerun()
 
-# ميزة الرفع الذكي والتحليل التلقائي للفواصل ومعالجة الخانات الفارغة (float NaN)
+# ميزة الرفع التلقائي الفوري بمجرد اختيار الملف (بدون أزرار اعتماد)
 st.sidebar.subheader("📤 رفع مخزون جديد بالكامل")
 uploaded_file = st.sidebar.file_uploader("اختر ملف المخزون الجديد:", type=["xlsx", "csv", "tsv", "txt"])
 
@@ -137,51 +137,50 @@ if uploaded_file is not None:
         
         required_cols = ['id', 'name', 'balance', 'cost', 'price', 'expiry', 'min_balance']
         if all(col in df.columns for col in required_cols):
-            if st.sidebar.button("🔄 اعتماد وتحديث المخزون الجديد"):
-                new_inventory = {}
-                for _, row in df.iterrows():
-                    # التحقق الآمن من كود المنتج والاسم وتجنب نصوص الأخطاء
-                    p_id = str(row['id']).strip() if pd.notna(row['id']) else ""
-                    if not p_id or p_id.lower() == 'nan':
-                        continue
-                        
-                    p_name = str(row['name']).strip() if pd.notna(row['name']) else "منتج بدون اسم"
+            new_inventory = {}
+            for _, row in df.iterrows():
+                p_id = str(row['id']).strip() if pd.notna(row['id']) else ""
+                if not p_id or p_id.lower() == 'nan':
+                    continue
                     
-                    # تحويل القيم الرقمية بأمان شديد واستبدال الخانات الفارغة بـ 0 أو القيمة الافتراضية
-                    try:
-                        balance_val = int(float(row['balance'])) if pd.notna(row['balance']) and str(row['balance']).strip() != '' else 0
-                    except:
-                        balance_val = 0
-                        
-                    try:
-                        cost_val = float(row['cost']) if pd.notna(row['cost']) and str(row['cost']).strip() != '' else 0.0
-                    except:
-                        cost_val = 0.0
-                        
-                    try:
-                        price_val = float(row['price']) if pd.notna(row['price']) and str(row['price']).strip() != '' else 0.0
-                    except:
-                        price_val = 0.0
-                        
-                    try:
-                        min_bal_val = int(float(row['min_balance'])) if pd.notna(row['min_balance']) and str(row['min_balance']).strip() != '' else 100
-                    except:
-                        min_bal_val = 100
-                        
-                    expiry_val = str(row['expiry']).strip() if pd.notna(row['expiry']) and str(row['expiry']).strip() != '' else "غير محدد"
+                p_name = str(row['name']).strip() if pd.notna(row['name']) else "منتج بدون اسم"
+                
+                try:
+                    balance_val = int(float(row['balance'])) if pd.notna(row['balance']) and str(row['balance']).strip() != '' else 0
+                except:
+                    balance_val = 0
                     
-                    new_inventory[p_id] = {
-                        "name": p_name,
-                        "balance": balance_val,
-                        "expiry": expiry_val,
-                        "cost": cost_val,
-                        "price": price_val,
-                        "min_balance": min_bal_val
-                    }
+                try:
+                    cost_val = float(row['cost']) if pd.notna(row['cost']) and str(row['cost']).strip() != '' else 0.0
+                except:
+                    cost_val = 0.0
                     
+                try:
+                    price_val = float(row['price']) if pd.notna(row['price']) and str(row['price']).strip() != '' else 0.0
+                except:
+                    price_val = 0.0
+                    
+                try:
+                    min_bal_val = int(float(row['min_balance'])) if pd.notna(row['min_balance']) and str(row['min_balance']).strip() != '' else 100
+                except:
+                    min_bal_val = 100
+                    
+                expiry_val = str(row['expiry']).strip() if pd.notna(row['expiry']) and str(row['expiry']).strip() != '' else "غير محدد"
+                
+                new_inventory[p_id] = {
+                    "name": p_name,
+                    "balance": balance_val,
+                    "expiry": expiry_val,
+                    "cost": cost_val,
+                    "price": price_val,
+                    "min_balance": min_bal_val
+                }
+            
+            # حفظ فوري ومباشر في النظام دون الحاجة لضغط زر الاعتماد
+            if new_inventory and new_inventory != st.session_state["inventory"]:
                 st.session_state["inventory"] = new_inventory
                 save_data(DATA_FILE, new_inventory)
-                st.sidebar.success("✅ تم تحديث المستودع بالكامل بنجاح وتجاوز الخانات الفارغة!")
+                st.sidebar.success("✅ تم تحديث وقراءة المستودع بالكامل بنجاح!")
                 st.rerun()
         else:
             st.sidebar.error("❌ تأكد أن السطر الأول في ملفك يحتوي تماماً على العناوين الإنجليزية التالية بدون تعديل: id, name, balance, cost, price, expiry, min_balance")
