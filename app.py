@@ -24,7 +24,312 @@ LOW_STOCK_DEFAULT = 100
 # لا تضع كلمة مرور المدير داخل الكود. أضف ADMIN_PASSWORD إلى Streamlit Secrets.
 ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD", os.getenv("ADMIN_PASSWORD", ""))
 
-DEFAULT_INVENTORY = {}
+DEFAULT_INVENTORY = {
+    "P001": {
+        "name": "ASHWAGANDHA MATEX 60 TAB",
+        "balance": 2371,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P002": {
+        "name": "BLACK SEED OIL 1000MG 60CAP",
+        "balance": 69,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P003": {
+        "name": "GOFIT CHARCOAL 30 CAP",
+        "balance": 4984,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P004": {
+        "name": "GOFIT CURCUMIN 1000 MG 60 TAB",
+        "balance": 4584,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P005": {
+        "name": "ivy syrp",
+        "balance": 831,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P006": {
+        "name": "JOINT PLANET 90 TAB",
+        "balance": 653,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P007": {
+        "name": "MATOTHREX COLLAGEN 120 TAB",
+        "balance": 0,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P008": {
+        "name": "UGC MATEX MELATONIN 30 TAB",
+        "balance": 1329,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P009": {
+        "name": "ORA SMOOTH BLACKSEED SPRAY 60 ML",
+        "balance": 1010,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P010": {
+        "name": "ORA SMOOTH CLOVE&CINNAMON SPRAY",
+        "balance": 2550,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P011": {
+        "name": "ORA SMOOTH MINT SPRAY 60 ML",
+        "balance": 7948,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P012": {
+        "name": "ORA SMOOTH ORANGE SPRAY 60 ML",
+        "balance": 8152,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P013": {
+        "name": "RELAX-FREE MASSAGE CREAM 100 GM",
+        "balance": 14,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P014": {
+        "name": "SYMPHONY COLLAGEN FACE SERUM",
+        "balance": 535,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P015": {
+        "name": "SYMPHONY HAIR SERUM 5AMP 1M",
+        "balance": 3664,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P016": {
+        "name": "SYMPHONY HYPERTONIC SPRAY",
+        "balance": 3408,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P017": {
+        "name": "Symphony massage cream Colocynth Oil",
+        "balance": 5171,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P018": {
+        "name": "Symphony massage cream black seed oil",
+        "balance": 6177,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P019": {
+        "name": "SYMPHONY CREAM Apple Cider Vinegar",
+        "balance": 7192,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P020": {
+        "name": "SYMPHONY MASSAGE CREAM OSTRICH FAT",
+        "balance": 4318,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P021": {
+        "name": "SYMPHONY SHAMPO 200 ML",
+        "balance": 368,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P022": {
+        "name": "SYMPHONY HAIR MASK 200 GM",
+        "balance": 10,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P023": {
+        "name": "U.G.C D3 4000 I.U. 30 TAB",
+        "balance": 0,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P024": {
+        "name": "U.G.C MAN 30 TAB",
+        "balance": 162,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P025": {
+        "name": "d3+k2",
+        "balance": 102,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P026": {
+        "name": "U.G.C WOMAN 30 TAB",
+        "balance": 37,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P027": {
+        "name": "UGC COLLAGEN 10 SACHETS",
+        "balance": 3038,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P028": {
+        "name": "UGC COLLAGEN 30 SACHETS",
+        "balance": 755,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P029": {
+        "name": "comblix",
+        "balance": 57,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P030": {
+        "name": "VBLS MAGNI B6 90 TAB",
+        "balance": 99,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P031": {
+        "name": "VBLS SLIMMING 30 TAB",
+        "balance": 1912,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P032": {
+        "name": "VBLS VITAMIN-C 1000MG 30 TAB",
+        "balance": 78,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P033": {
+        "name": "omega3  60cap",
+        "balance": 236,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P034": {
+        "name": "cogni draw",
+        "balance": 1902,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P035": {
+        "name": "gelon 120",
+        "balance": 430,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P036": {
+        "name": "gelon60",
+        "balance": 193,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P037": {
+        "name": "rozichika",
+        "balance": 64,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    },
+    "P038": {
+        "name": "shartic",
+        "balance": 1376,
+        "expiry": "غير محدد",
+        "cost": 0,
+        "price": 0,
+        "min_balance": 100
+    }
+}
 DATABASE_URL = st.secrets.get("DATABASE_URL", os.getenv("DATABASE_URL", "")).strip()
 STATE_KEYS = {DATA_FILE: "inventory", INVOICES_FILE: "invoices", MOVEMENTS_FILE: "movements"}
 
@@ -197,6 +502,26 @@ try:
     clear_inventory_once()
 except Exception as exc:
     st.error(f"تعذر تنفيذ تهيئة قائمة الأصناف: {exc}")
+    st.stop()
+
+# استيراد كتالوج مخزن التجمع من شيت 7-9 مرة واحدة، بدون أسعار لأن المستخدم لم يطلبها.
+SEED_MARKER = "taghammu_catalog_seeded_7_9_v1"
+try:
+    if DATABASE_URL:
+        seeded = db_read(SEED_MARKER, False)
+    else:
+        seeded = os.path.exists("." + SEED_MARKER)
+    if not seeded:
+        current_catalog = read_json(DATA_FILE, {})
+        if not current_catalog:
+            write_json(DATA_FILE, DEFAULT_INVENTORY)
+        if DATABASE_URL:
+            db_write(SEED_MARKER, True)
+        else:
+            with open("." + SEED_MARKER, "w", encoding="utf-8") as seed_handle:
+                seed_handle.write(datetime.now().isoformat())
+except Exception as exc:
+    st.error(f"تعذر تحميل قائمة منتجات مخزن التجمع: {exc}")
     st.stop()
 
 inventory = load_inventory()
