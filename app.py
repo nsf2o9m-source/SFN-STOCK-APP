@@ -21,8 +21,17 @@ INVOICES_FILE = "invoices_web.json"
 MOVEMENTS_FILE = "movements_web.json"
 LOW_STOCK_DEFAULT = 100
 
-# لا تضع كلمة مرور المدير داخل الكود. أضف ADMIN_PASSWORD إلى Streamlit Secrets.
-ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD", os.getenv("ADMIN_PASSWORD", ""))
+# لا تضع كلمات المرور داخل الكود أو المستودع.
+# قد لا يكون ملف secrets موجودًا بعد؛ لذلك نقرأ الإعدادات بأمان.
+def get_setting(name, default=""):
+    try:
+        value = st.secrets.get(name, default)
+    except Exception:
+        value = default
+    return os.getenv(name, value)
+
+
+ADMIN_PASSWORD = str(get_setting("ADMIN_PASSWORD", "")).strip()
 
 DEFAULT_INVENTORY = {
     "P001": {
@@ -330,7 +339,7 @@ DEFAULT_INVENTORY = {
         "min_balance": 100
     }
 }
-DATABASE_URL = st.secrets.get("DATABASE_URL", os.getenv("DATABASE_URL", "")).strip()
+DATABASE_URL = str(get_setting("DATABASE_URL", "")).strip()
 STATE_KEYS = {DATA_FILE: "inventory", INVOICES_FILE: "invoices", MOVEMENTS_FILE: "movements"}
 
 
