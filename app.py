@@ -117,11 +117,13 @@ if st.sidebar.button("🗑️ مسح كافة المنتجات والبيانا�
     st.sidebar.success("تم مسح المخزون بالكامل بنجاح وتصفير الموقع!")
     st.rerun()
 
-# ميزة الرفع التلقائي الفوري بمجرد اختيار الملف (بدون أزرار اعتماد)
+# ميزة الرفع الجديدة والمحمية عبر معالج الأزرار الخارجي (Non-Sidebar Action)
 st.sidebar.subheader("📤 رفع مخزون جديد بالكامل")
 uploaded_file = st.sidebar.file_uploader("اختر ملف المخزون الجديد:", type=["xlsx", "csv", "tsv", "txt"])
 
+# وضع زر الحفظ في الصفحة الرئيسية لمنع فقدان البيانات عند التحديث المفاجئ
 if uploaded_file is not None:
+    st.info("🔄 جاري قراءة وتحليل ملفك المرفوع حالياً... يرجى مراجعة الزر بالأسفل للحفظ.")
     try:
         if uploaded_file.name.endswith('.csv'):
             sample = uploaded_file.read(2048).decode('utf-8', errors='ignore')
@@ -134,32 +136,28 @@ if uploaded_file is not None:
             df = pd.read_excel(uploaded_file, engine='calamine')
             
         df.columns = [str(col).strip().lower() for col in df.columns]
-        
         required_cols = ['id', 'name', 'balance', 'cost', 'price', 'expiry', 'min_balance']
+        
         if all(col in df.columns for col in required_cols):
             new_inventory = {}
             for _, row in df.iterrows():
                 p_id = str(row['id']).strip() if pd.notna(row['id']) else ""
                 if not p_id or p_id.lower() == 'nan':
                     continue
-                    
                 p_name = str(row['name']).strip() if pd.notna(row['name']) else "منتج بدون اسم"
                 
                 try:
                     balance_val = int(float(row['balance'])) if pd.notna(row['balance']) and str(row['balance']).strip() != '' else 0
                 except:
                     balance_val = 0
-                    
                 try:
                     cost_val = float(row['cost']) if pd.notna(row['cost']) and str(row['cost']).strip() != '' else 0.0
                 except:
                     cost_val = 0.0
-                    
                 try:
                     price_val = float(row['price']) if pd.notna(row['price']) and str(row['price']).strip() != '' else 0.0
                 except:
                     price_val = 0.0
-                    
                 try:
                     min_bal_val = int(float(row['min_balance'])) if pd.notna(row['min_balance']) and str(row['min_balance']).strip() != '' else 100
                 except:
@@ -168,24 +166,21 @@ if uploaded_file is not None:
                 expiry_val = str(row['expiry']).strip() if pd.notna(row['expiry']) and str(row['expiry']).strip() != '' else "غير محدد"
                 
                 new_inventory[p_id] = {
-                    "name": p_name,
-                    "balance": balance_val,
-                    "expiry": expiry_val,
-                    "cost": cost_val,
-                    "price": price_val,
-                    "min_balance": min_bal_val
+                    "name": p_name, "balance": balance_val, "expiry": expiry_val,
+                    "cost": cost_val, "price": price_val, "min_balance": min_bal_val
                 }
             
-            # حفظ فوري ومباشر في النظام دون الحاجة لضغط زر الاعتماد
-            if new_inventory and new_inventory != st.session_state["inventory"]:
+            # عرض زر الاعتماد الكبير في واجهة الصفحة لضمان تشغيله دون تداخل
+            st.warning("⚠️ تم التعرف على ملفك بنجاح. اضغط على الزر بالأسفل لاستبدال المخزون الحالي بمنتجات الملف الجديد:")
+            if st.button("💾 اضغط هنا لاعتماد وحفظ منتجات الملف الجديد أونلاين", type="primary"):
                 st.session_state["inventory"] = new_inventory
                 save_data(DATA_FILE, new_inventory)
-                st.sidebar.success("✅ تم تحديث وقراءة المستودع بالكامل بنجاح!")
+                st.success("✅ تم تحديث ونشر المستودع الجديد بنجاح!")
                 st.rerun()
         else:
-            st.sidebar.error("❌ تأكد أن السطر الأول في ملفك يحتوي تماماً على العناوين الإنجليزية التالية بدون تعديل: id, name, balance, cost, price, expiry, min_balance")
+            st.error("❌ عذراً، الملف المرفوع لا يحتوي على الأعمدة الصحيحة في السطر الأول. يرجى التأكد من المسميات الإنجليزية.")
     except Exception as e:
-        st.sidebar.error(f"خطأ أثناء قراءة الملف: {str(e)}")
+        st.error(f"خطأ أثناء معالجة بيانات الملف: {str(e)}")
 
 st.sidebar.subheader("➕ إضافة منتج يدوياً")
 with st.sidebar.form("add_new_product_form", clear_on_submit=True):
