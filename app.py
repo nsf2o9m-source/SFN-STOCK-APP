@@ -24,11 +24,9 @@ def get_setting(name, default=""):
         value = default
     return os.getenv(name, value)
 
-# 🔐 كلمة مرور المدير الافتراضية هي Sfn2026 
-# (يمكنك كتابة أي كلمة سر تريدها بين العلامتين بدلاً منها مباشرة داخل الكود هنا)
 ADMIN_PASSWORD = str(get_setting("ADMIN_PASSWORD", "Sfn2026")).strip()
 
-# قاعدة البيانات المحدثة للمنتجات الـ 38
+# قاعدة البيانات الحية لمنتجاتك الـ 38
 NEW_MUKHZON = {
     "P001": {"name": "ASHWAGANDHA MATEX 60 TAB", "balance": 2371, "expiry": "غير محدد", "cost": 0, "price": 0, "min_balance": 100},
     "P002": {"name": "BLACK SEED OIL 1000MG 60CAP", "balance": 69, "expiry": "غير محدد", "cost": 0, "price": 0, "min_balance": 100},
@@ -73,7 +71,7 @@ NEW_MUKHZON = {
 if "inventory" not in st.session_state:
     st.session_state["inventory"] = NEW_MUKHZON
 
-# -------------------- نظام البوابة وصلاحيات الدخول --------------------
+# -------------------- نظام الصلاحيات --------------------
 st.sidebar.title("🔐 صلاحيات النظام")
 user_role = st.sidebar.selectbox("نوع الحساب الحالي:", ["موظف (مشاهدة فقط)", "مدير النظام (Admin)"])
 
@@ -88,8 +86,40 @@ if user_role == "مدير النظام (Admin)":
 else:
     st.sidebar.info("ℹ️ وضع المشاهدة نشط (موظف). الخيارات مقفلة.")
 
-# -------------------- واجهة تحكم المدير (تظهر فقط بعد كتابة كلمة المرور الصحيحة) --------------------
+# -------------------- لوحة التحديث اليومي السريع (تظهر للمدير فقط في الصفحة الرئيسية) --------------------
 if is_admin:
+    st.write("## ⚡ التحديث اليومي السريع للمخزون")
+    with st.expander("🛠️ اضغط هنا لزيادة أو إنقاص كمية أي منتج بلمحة بصر", expanded=True):
+        col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+        
+        with col1:
+            # قائمة منسدلة سهلة تظهر كود المنتج واسمه معاً
+            product_options = {k: f"{k} - {v['name']} (الحالي: {v['balance']})" for k, v in st.session_state["inventory"].items()}
+            selected_prod_key = st.selectbox("اختر المنتج المراد تعديله:", options=list(product_options.keys()), format_func=lambda x: product_options[x])
+            
+        with col2:
+            action = st.radio("نوع العملية اليومية:", ["➕ زيادة (وارد)", "➖ نقصان (منصرف)"])
+            
+        with col3:
+            amount = st.number_input("الكمية المراد تعديلها:", min_value=1, value=1, step=1)
+            
+        with col4:
+            st.write("<br>", unsafe_allow_html=True) # لضبط المحاذاة مع المدخلات
+            if st.button("🚀 تحديث الكمية الآن", type="primary", use_container_width=True):
+                current_balance = st.session_state["inventory"][selected_prod_key]["balance"]
+                
+                if action == "➕ زيادة (وارد)":
+                    st.session_state["inventory"][selected_prod_key]["balance"] = current_balance + amount
+                    st.success(f"✅ تم زيادة مخزون {selected_prod_key} بمقدار {amount} قطعة!")
+                else:
+                    if current_balance >= amount:
+                        st.session_state["inventory"][selected_prod_key]["balance"] = current_balance - amount
+                        st.success(f"✅ تم إنقاص مخزون {selected_prod_key} بمقدار {amount} قطعة!")
+                    else:
+                        st.error("❌ المخزون الحالي لا يكفي لإتمام عملية النقصان!")
+                st.rerun()
+
+    # -------------------- واجهة تحكم المدير الجانبية --------------------
     st.sidebar.markdown("---")
     st.sidebar.title("⚙️ لوحة الإدارة والتحكم")
     
@@ -100,11 +130,11 @@ if is_admin:
         st.sidebar.success("تم تصفير المخزون!")
         st.rerun()
 
-    st.sidebar.subheader("➕ إضافة منتج يدوياً")
+    st.sidebar.subheader("➕ إضافة منتج جديد تماماً")
     with st.sidebar.form("add_new_product_form", clear_on_submit=True):
-        p_id = st.text_input("كود المنتج (P039):").strip()
-        p_name = st.text_input("اسم المنتج / السهم:").strip()
-        p_balance = st.number_input("الرصيد:", min_value=0, value=0, step=1)
+        p_id = st.text_input("كود المنتج الجديد (مثل P039):").strip()
+        p_name = st.text_input("اسم المنتج الجديد:").strip()
+        p_balance = st.number_input("الرصيد الابتدائي:", min_value=0, value=0, step=1)
         p_cost = st.number_input("التكلفة:", min_value=0.0, value=0.0)
         p_price = st.number_input("السعر:", min_value=0.0, value=0.0)
         p_expiry = st.text_input("الصلاحية:", value="غير محدد")
@@ -122,24 +152,4 @@ if is_admin:
                     "name": p_name, "balance": p_balance, "expiry": p_expiry,
                     "cost": p_cost, "price": p_price, "min_balance": p_min
                 }
-                st.sidebar.success(f"تم إضافة {p_name}!")
-                st.rerun()
-
-# -------------------- عرض واجهة المستخدم الأساسية --------------------
-st.write("### 📦 المخزون الحالي في النظام أونلاين:")
-if st.session_state["inventory"]:
-    df_inv = pd.DataFrame.from_dict(st.session_state["inventory"], orient='index')
-    
-    # للمدير: واجهة تعديل حية تفاعلية لحفظ وتغيير الأرقام
-    if is_admin:
-        st.info("💡 يمكنك تعديل كميات أو أسعار المنتجات مباشرة من داخل الجدول بالأسفل ثم اضغط حفظ:")
-        edited_df = st.data_editor(df_inv, use_container_width=True)
-        if st.button("💾 حفظ تعديلات الجدول الحالية"):
-            st.session_state["inventory"] = edited_df.to_dict(orient='index')
-            st.success("✅ تم حفظ وتثبيت تعديلاتك الجديدة بنجاح!")
-            st.rerun()
-    # للموظف: جدول قراءة فقط ثابت غير قابل للنقر والتعديل
-    else:
-        st.dataframe(df_inv, use_container_width=True)
-else:
-    st.info("المخزون فارغ حالياً.")
+                st.sidebar.success(f"تم إضافة {p_name} بنجاح!")
