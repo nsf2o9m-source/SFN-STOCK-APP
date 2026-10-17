@@ -99,6 +99,7 @@ def load_data(file_name, default_value):
                 row = cur.fetchone()
                 if row:
                     return row[0]
+            # تهيئة قاعدة البيانات فقط إذا كانت فارغة تماماً لأول مرة
             save_data(file_name, default_value)
             return default_value
         except Exception:
@@ -131,12 +132,12 @@ def save_data(file_name, data):
     with open(file_name, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-if "inventory" not in st.session_state:
+# التأكد من عدم استدعاء القائمة الافتراضية إذا تم اختيار تصفير المخزون مسبقاً
+if "initialized" not in st.session_state:
     st.session_state["inventory"] = load_data(DATA_FILE, DEFAULT_INVENTORY)
-if "invoices" not in st.session_state:
     st.session_state["invoices"] = load_data(INVOICES_FILE, [])
-if "movements" not in st.session_state:
     st.session_state["movements"] = load_data(MOVEMENTS_FILE, [])
+    st.session_state["initialized"] = True
 
 # -------------------- واجهة لوحة تحكم المخزون --------------------
 st.sidebar.title("⚙️ لوحة التحكم والإدارة")
@@ -147,6 +148,7 @@ if st.sidebar.button("🗑️ مسح كافة المنتجات والبيانا�
     st.session_state["inventory"] = {}
     st.session_state["invoices"] = []
     st.session_state["movements"] = []
+    # حفظ القاموس فارغاً في السيرفر وقاعدة البيانات لمنع استعادة المخزون القديم
     save_data(DATA_FILE, {})
     save_data(INVOICES_FILE, [])
     save_data(MOVEMENTS_FILE, [])
@@ -179,8 +181,3 @@ with st.sidebar.form("add_new_product_form", clear_on_submit=True):
                 "price": p_price,
                 "min_balance": p_min
             }
-            save_data(DATA_FILE, st.session_state["inventory"])
-            st.sidebar.success(f"تم إضافة المنتج ({p_name}) بنجاح!")
-            st.rerun()
-
-# -------------------- عرض المخزون الأساسي --------------------
