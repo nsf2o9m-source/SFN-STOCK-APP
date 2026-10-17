@@ -17,7 +17,7 @@ st.set_page_config(
 
 LOW_STOCK_DEFAULT = 100
 
-# القائمة القديمة الافتراضية (تُستخدم فقط إذا لم يقم المستخدم بتحديث المخزون)
+# القائمة القديمة الافتراضية (تُستخدم فقط كخيار احتياطي)
 if "default_loaded" not in st.session_state:
     st.session_state["default_loaded"] = {
         "P001": {"name": "ASHWAGANDHA MATEX 60 TAB", "balance": 2371, "expiry": "غير محدد", "cost": 0, "price": 0, "min_balance": 100},
@@ -60,13 +60,9 @@ if "default_loaded" not in st.session_state:
         "P038": {"name": "shartic", "balance": 1376, "expiry": "غير محدد", "cost": 0, "price": 0, "min_balance": 100}
     }
 
-# تهيئة وإدارة المخزون داخل الذاكرة الحية للموقع مباشرة لثباته أونلاين
+# إدارة المخزون مباشرة لضمان ثباته أونلاين
 if "inventory" not in st.session_state:
     st.session_state["inventory"] = st.session_state["default_loaded"]
-if "invoices" not in st.session_state:
-    st.session_state["invoices"] = []
-if "movements" not in st.session_state:
-    st.session_state["movements"] = []
 
 # -------------------- واجهة لوحة تحكم المخزون --------------------
 st.sidebar.title("⚙️ لوحة التحكم والإدارة")
@@ -75,12 +71,10 @@ st.sidebar.subheader("🚨 تصفير المستودع")
 confirm_delete = st.sidebar.checkbox("أنا متأكد من رغبتي في مسح كل المخزون الحالي")
 if st.sidebar.button("🗑️ مسح كافة المنتجات والبيانات", disabled=not confirm_delete):
     st.session_state["inventory"] = {}
-    st.session_state["invoices"] = []
-    st.session_state["movements"] = []
-    st.sidebar.success("تم مسح المخزون بالكامل وتصفير الموقع!")
+    st.sidebar.success("تم مسح المخزون بالكامل!")
     st.rerun()
 
-# ميزة الرفع الفوري المباشر وحفظه في ذاكرة النظام الحية
+# ميزة الرفع الفوري التلقائي والقسري للبيانات
 st.sidebar.subheader("📤 رفع مخزون جديد بالكامل")
 uploaded_file = st.sidebar.file_uploader("اختر ملف المخزون الجديد:", type=["xlsx", "csv", "tsv", "txt"])
 
@@ -131,14 +125,14 @@ if uploaded_file is not None:
                     "cost": cost_val, "price": price_val, "min_balance": min_bal_val
                 }
             
-            # التحديث الفوري المباشر للذاكرة دون أزرار خارجية تسبب فقدان الملف
-            if new_inventory:
+            # فرض التحديث المباشر فوراً دون انتظار أي ضغط أزرار
+            if new_inventory and new_inventory != st.session_state["inventory"]:
                 st.session_state["inventory"] = new_inventory
-                st.sidebar.success("✅ تم تحديث ونشر المخزون الجديد في الذاكرة بنجاح!")
+                st.rerun()
         else:
-            st.sidebar.error("❌ عذراً، الملف المرفوع لا يحتوي على الأعمدة الصحيحة في السطر الأول. يرجى التأكد من المسميات الإنجليزية.")
+            st.sidebar.error("❌ تأكد أن ملفك يحتوي تماماً في أول صف على المسميات: id, name, balance, cost, price, expiry, min_balance")
     except Exception as e:
-        st.sidebar.error(f"خطأ أثناء معالجة بيانات الملف: {str(e)}")
+        st.sidebar.error(f"خطأ: {str(e)}")
 
 st.sidebar.subheader("➕ إضافة منتج يدوياً")
 with st.sidebar.form("add_new_product_form", clear_on_submit=True):
@@ -146,3 +140,12 @@ with st.sidebar.form("add_new_product_form", clear_on_submit=True):
     p_name = st.text_input("اسم المنتج / السهم:").strip()
     p_balance = st.number_input("الرصيد:", min_value=0, value=0, step=1)
     p_cost = st.number_input("التكلفة:", min_value=0.0, value=0.0)
+    p_price = st.number_input("السعر:", min_value=0.0, value=0.0)
+    p_expiry = st.text_input("الصلاحية:", value="غير محدد")
+    p_min = st.number_input("الحد الأدنى:", min_value=0, value=100)
+    
+    submit_product = st.form_submit_button("حفظ المنتج يدوياً")
+    
+    if submit_product:
+        if not p_id or not p_name:
+            st.sidebar.error("يرجى إدخال كود واسم المنتج!")
