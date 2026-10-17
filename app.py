@@ -138,3 +138,4 @@ if is_admin:
                 st.sidebar.error("هذا الكود مستخدم بالفعل!")
             else:
                 st.session_state["master_inventory"][p_id] = {
+                    "name": p_name, 
