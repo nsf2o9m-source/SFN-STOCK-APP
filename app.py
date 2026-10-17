@@ -99,7 +99,6 @@ def load_data(file_name, default_value):
                 row = cur.fetchone()
                 if row:
                     return row[0]
-            # إذا لم تكن البيانات موجودة في قاعدة البيانات، نقوم بتهيئتها
             save_data(file_name, default_value)
             return default_value
         except Exception:
@@ -107,7 +106,6 @@ def load_data(file_name, default_value):
         finally:
             conn.close()
     
-    # حل احتياطي محلي في حال فشل قاعدة البيانات
     if os.path.exists(file_name):
         with open(file_name, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -130,11 +128,9 @@ def save_data(file_name, data):
         finally:
             conn.close()
     
-    # حفظ محلي متزامن
     with open(file_name, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-# تهيئة بيانات الجلسة (Session State)
 if "inventory" not in st.session_state:
     st.session_state["inventory"] = load_data(DATA_FILE, DEFAULT_INVENTORY)
 if "invoices" not in st.session_state:
@@ -142,10 +138,9 @@ if "invoices" not in st.session_state:
 if "movements" not in st.session_state:
     st.session_state["movements"] = load_data(MOVEMENTS_FILE, [])
 
-# -------------------- واجهة لوحة تحكم المخزون الجديدة --------------------
+# -------------------- واجهة لوحة تحكم المخزون --------------------
 st.sidebar.title("⚙️ لوحة التحكم والإدارة")
 
-# القسم 1: مسح كل المخزون الحالي
 st.sidebar.subheader("🚨 تصفير المستودع")
 confirm_delete = st.sidebar.checkbox("أنا متأكد من رغبتي في مسح كل المخزون الحالي")
 if st.sidebar.button("🗑️ مسح كافة المنتجات والبيانات", disabled=not confirm_delete):
@@ -158,7 +153,6 @@ if st.sidebar.button("🗑️ مسح كافة المنتجات والبيانا�
     st.sidebar.success("تم مسح المخزون بالكامل بنجاح وتصفير الموقع!")
     st.rerun()
 
-# القسم 2: إضافة سهم / منتج جديد يدوياً
 st.sidebar.subheader("➕ إضافة منتج جديد")
 with st.sidebar.form("add_new_product_form", clear_on_submit=True):
     p_id = st.text_input("كود المنتج (مثال: P039):").strip()
@@ -177,10 +171,16 @@ with st.sidebar.form("add_new_product_form", clear_on_submit=True):
         elif p_id in st.session_state["inventory"]:
             st.sidebar.error("هذا الكود مستخدم بالفعل لمنتج آخر!")
         else:
-            # إضافة المنتج الجديد إلى الـ session_state وقاعدة البيانات
             st.session_state["inventory"][p_id] = {
                 "name": p_name,
                 "balance": p_balance,
                 "expiry": p_expiry,
+                "cost": p_cost,
+                "price": p_price,
+                "min_balance": p_min
+            }
+            save_data(DATA_FILE, st.session_state["inventory"])
+            st.sidebar.success(f"تم إضافة المنتج ({p_name}) بنجاح!")
+            st.rerun()
 
-            
+# -------------------- عرض المخزون الأساسي --------------------
