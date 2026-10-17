@@ -69,7 +69,7 @@ if "master_inventory" not in st.session_state:
         "P038": {"name": "shartic", "balance": 1376, "expiry": "غير محدد", "cost": 0.0, "price": 0.0, "min_balance": 100}
     }
 
-# -------------------- نظام الصلاحيات --------------------
+# -------------------- نظام الصلاحيات البسيط --------------------
 st.sidebar.title("🔐 صلاحيات النظام")
 user_role = st.sidebar.selectbox("نوع الحساب الحالي:", ["موظف (مشاهدة فقط)", "مدير النظام (Admin)"])
 
@@ -78,13 +78,13 @@ if user_role == "مدير النظام (Admin)":
     password_input = st.sidebar.text_input("أدخل كلمة مرور الإدارة لوضع التعديل:", type="password")
     if password_input == ADMIN_PASSWORD:
         is_admin = True
-        st.sidebar.success("🔑 تم تفعيل صلاحيات المدير التعديلية!")
+        st.sidebar.success("🔑 تم تفعيل صلاحيات المدير!")
     elif password_input != "":
         st.sidebar.error("❌ كلمة المرور غير صحيحة!")
 else:
     st.sidebar.info("ℹ️ وضع المشاهدة نشط (موظف). الخيارات مقفلة.")
 
-# -------------------- لوحة التحديث اليومي السريع (تظهر للمدير فقط) --------------------
+# -------------------- لوحة التحديث اليومي السريع --------------------
 if is_admin:
     st.write("## ⚡ التحديث اليومي السريع للمخزون")
     with st.expander("🛠️ اضغط هنا لزيادة أو إنقاص كمية أي منتج بلمحة بصر", expanded=True):
@@ -102,39 +102,46 @@ if is_admin:
                 current_balance = st.session_state["master_inventory"][selected_prod_key]["balance"]
                 if action == "➕ زيادة (وارد)":
                     st.session_state["master_inventory"][selected_prod_key]["balance"] = current_balance + amount
-                    st.success(f"✅ تم زيادة مخزون {selected_prod_key} بمقدار {amount} قطعة!")
+                    st.success("✅ تم تحديث المخزون بنجاح!")
                 else:
                     if current_balance >= amount:
                         st.session_state["master_inventory"][selected_prod_key]["balance"] = current_balance - amount
-                        st.success(f"✅ تم إنقاص مخزون {selected_prod_key} بمقدار {amount} قطعة!")
+                        st.success("✅ تم تحديث المخزون بنجاح!")
                     else:
-                        st.error("❌ المخزون الحالي لا يكفي لإتمام عملية النقصان!")
+                        st.error("❌ المخزون الحالي لا يكفي!")
                 st.rerun()
 
-    # -------------------- واجهة تحكم المدير الجانبية --------------------
+    # -------------------- واجهة تحكم المدير الجانبية السهلة --------------------
     st.sidebar.markdown("---")
     st.sidebar.title("⚙️ لوحة الإدارة والتحكم")
-    st.sidebar.subheader("🚨 تصفير المستودع")
-    confirm_delete = st.sidebar.checkbox("أنا متأكد من رغبتي في مسح كل المخزون الحالي")
-    if st.sidebar.button("🗑️ مسح كافة المنتجات والبيانات", disabled=not confirm_delete):
-        st.session_state["master_inventory"] = {}
-        st.sidebar.success("تم تصفير المخزون!")
-        st.rerun()
-
+    
     st.sidebar.subheader("➕ إضافة منتج جديد تماماً")
     p_id = st.sidebar.text_input("كود المنتج الجديد (مثل P039):").strip()
     p_name = st.sidebar.text_input("اسم المنتج الجديد:").strip()
     p_balance = st.sidebar.number_input("الرصيد الابتدائي:", min_value=0, value=0, step=1)
-    p_cost = st.sidebar.number_input("التكلفة:", min_value=0.0, value=0.0)
-    p_price = st.sidebar.number_input("السعر:", min_value=0.0, value=0.0)
-    p_expiry = st.sidebar.text_input("الصلاحية:", value="غير محدد")
-    p_min = st.sidebar.number_input("الحد الأدنى:", min_value=0, value=100)
     
     if st.sidebar.button("حفظ المنتج الجديد"):
-        if not p_id or not p_name:
-            st.sidebar.error("يرجى إدخال كود واسم المنتج!")
-        elif p_id in st.session_state["master_inventory"]:
-            st.sidebar.error("هذا الكود مستخدم بالفعل!")
+        if p_id and p_name:
+            if p_id not in st.session_state["master_inventory"]:
+                st.session_state["master_inventory"][p_id] = {
+                    "name": p_name, "balance": p_balance, "expiry": "غير محدد", "cost": 0.0, "price": 0.0, "min_balance": 100
+                }
+                st.sidebar.success(f"تم إضافة {p_name} بنجاح!")
+                st.rerun()
+            else:
+                st.sidebar.error("هذا الكود مستخدم بالفعل!")
         else:
-            st.session_state["master_inventory"][p_id] = {"name": p_name, "balance": p_balance, "expiry": p_expiry, "cost": p_cost, "price": p_price, "min_balance": p_min}
-            st.sidebar.success(f"تم إضافة {p_name} بنجاح!")
+            st.sidebar.error("يرجى إدخال الكود والاسم!")
+
+# -------------------- عرض واجهة المستخدم الأساسية الهيكلية المستقرة --------------------
+st.write("---")
+st.write("### 📦 المخزون الحالي في النظام أونلاين:")
+
+# قراءة الجدول بشكل مباشر ومستقل تماماً لضمان عرضه في كل الأحوال
+df_inv = pd.DataFrame.from_dict(st.session_state["master_inventory"], orient='index')
+
+if is_admin:
+    st.info("💡 يمكنك أيضاً تعديل التفاصيل الأخرى مباشرة من الجدول بالأسفل ثم اضغط حفظ:")
+    edited_df = st.data_editor(df_inv, use_container_width=True)
+    if st.button("💾 حفظ تعديلات الجدول الكلية"):
+        st.session_state["master_inventory"] = edited_df.to_dict(orient='index')
