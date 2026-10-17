@@ -355,7 +355,7 @@ def db_read(key, fallback):
         with conn.cursor() as cur:
             cur.execute("SELECT payload FROM sfn_app_state WHERE state_key = %s", (key,))
             row = cur.fetchone()
-            return row[0] if row else (fallback.copy() if isinstance(fallback, dict) else list(fallback))
+            return row[0] if row else (fallback.copy() if isinstance(fallback, dict) else list(fallback) if isinstance(fallback, list) else fallback)
 
 
 def db_write(key, value):
