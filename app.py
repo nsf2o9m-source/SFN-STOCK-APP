@@ -17,8 +17,6 @@ st.set_page_config(
 )
 
 DATA_FILE = "inventory_web.json"
-INVOICES_FILE = "invoices_web.json"
-MOVEMENTS_FILE = "movements_web.json"
 LOW_STOCK_DEFAULT = 100
 
 def get_setting(name, default=""):
@@ -28,19 +26,18 @@ def get_setting(name, default=""):
         value = default
     return os.getenv(name, value)
 
-ADMIN_PASSWORD = str(get_setting("ADMIN_PASSWORD", "")).strip()
 DATABASE_URL = str(get_setting("DATABASE_URL", "")).strip()
 
 DEFAULT_INVENTORY = {
     "P001": {"name": "ASHWAGANDHA MATEX 60 TAB", "balance": 2371, "expiry": "غير محدد", "cost": 0, "price": 0, "min_balance": 100}
 }
 
-# -------------------- دالات الاتصال والحفظ الدائم أونلاين --------------------
+# -------------------- دالات الحفظ والتحميل السحابية والمحلية الهجينة --------------------
 def db_connect():
-    if not DATABASE_URL:
+    if not DATABASE_URL or "اكتب_كلمة_المرور_هنا" in DATABASE_URL:
         return None
     try:
-        conn = psycopg.connect(DATABASE_URL, connect_timeout=5)
+        conn = psycopg.connect(DATABASE_URL, connect_timeout=3)
         with conn.cursor() as cur:
             cur.execute("""CREATE TABLE IF NOT EXISTS sfn_app_state (
                 key_name TEXT PRIMARY KEY,
@@ -59,9 +56,7 @@ def load_data(file_name, default_value):
                 cur.execute("SELECT json_data FROM sfn_app_state WHERE key_name = %s", (file_name,))
                 row = cur.fetchone()
                 if row and row is not None:
-                    return row[0] if isinstance(row, tuple) else row
-            save_data(file_name, default_value)
-            return default_value
+                    return row if isinstance(row, dict) else json.loads(row[0])
         except Exception:
             pass
         finally:
@@ -69,6 +64,10 @@ def load_data(file_name, default_value):
     return default_value
 
 def save_data(file_name, data):
+    # حفظ فوري في الذاكرة الحية لضمان العرض المباشر أمام المستخدم
+    st.session_state["inventory"] = data
+    
+    # محاولة الحفظ الاحتياطي في السحابة
     conn = db_connect()
     if conn:
         try:
@@ -85,6 +84,7 @@ def save_data(file_name, data):
         finally:
             conn.close()
 
+# ضمان تهيئة الجلسة لعدم التصفير التلقائي
 if "inventory" not in st.session_state:
     st.session_state["inventory"] = load_data(DATA_FILE, DEFAULT_INVENTORY)
 
@@ -94,7 +94,6 @@ st.sidebar.title("⚙️ لوحة التحكم والإدارة")
 st.sidebar.subheader("🚨 تصفير المستودع")
 confirm_delete = st.sidebar.checkbox("أنا متأكد من رغبتي في مسح كل المخزون الحالي")
 if st.sidebar.button("🗑️ مسح كافة المنتجات والبيانات", disabled=not confirm_delete):
-    st.session_state["inventory"] = {}
     save_data(DATA_FILE, {})
     st.sidebar.success("تم مسح المخزون بالكامل بنجاح وتصفير الموقع!")
     st.rerun()
@@ -129,11 +128,13 @@ if uploaded_file is not None:
                     "min_balance": int(pd.to_numeric(row['min_balance'], errors='coerce') or 100)
                 }
             
-            if new_inventory and new_inventory != st.session_state["inventory"]:
-                st.session_state["inventory"] = new_inventory
+            # تحديث مباشر وفوري للجدول المعروض لتأكيد النجاح أمامك
+            if new_inventory:
                 save_data(DATA_FILE, new_inventory)
-                st.sidebar.success("✅ تم تحديث ونشر المخزون الجديد بنجاح في قاعدة البيانات!")
-                st.rerun() # تحديث فوري للشاشة لعرض الجدول فوراً
+                st.sidebar.success("✅ تم تحديث ونشر المخزون الجديد بنجاح!")
+                st.rerun()
+        else:
+            st.sidebar.error("❌ تأكد أن ملفك يحتوي على العناوين: id, name, balance, cost, price, expiry, min_balance")
     except Exception as e:
         st.sidebar.error(f"خطأ: {str(e)}")
 
@@ -143,4 +144,4 @@ if st.session_state["inventory"]:
     df_inv = pd.DataFrame.from_dict(st.session_state["inventory"], orient='index')
     st.dataframe(df_inv, use_container_width=True)
 else:
-    st.info("المخزون فارغ حالياً. يرجى اختيار ملفك الجديد من القائمة الجانبية لتنشيط النظام.")
+    st.info("المخزون فارغ حالياً. يرجى اختيار ملفك الجديد من القائمة الجانبير لتنشيط النظام.")
