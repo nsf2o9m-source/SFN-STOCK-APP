@@ -512,7 +512,9 @@ try:
     else:
         seeded = os.path.exists("." + SEED_MARKER)
     if not seeded:
-        current_catalog = read_json(DATA_FILE, {})
+        # اقرأ صف المخزون مباشرة من قاعدة البيانات؛ read_json يستخدم الكتالوج
+        # الافتراضي كقيمة احتياطية، ما قد يمنع حفظه لأول مرة في PostgreSQL.
+        current_catalog = db_read("inventory", None) if DATABASE_URL else read_json(DATA_FILE, {})
         if not current_catalog:
             write_json(DATA_FILE, DEFAULT_INVENTORY)
         if DATABASE_URL:
