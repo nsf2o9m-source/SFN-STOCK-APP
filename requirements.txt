@@ -1,2 +1,2 @@
-pypdf
-psycopg[binary]
+pypdf>=5.0.0
+psycopg[binary]>=3.2.0
