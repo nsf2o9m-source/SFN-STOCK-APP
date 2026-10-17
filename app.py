@@ -117,21 +117,24 @@ if st.sidebar.button("🗑️ مسح كافة المنتجات والبيانا�
     st.sidebar.success("تم مسح المخزون بالكامل بنجاح وتصفير الموقع!")
     st.rerun()
 
-# ميزة الرفع الذكي للمخزون الجديد (يدعم Excel, CSV, TSV)
+# ميزة الرفع الذكي والتحليل التلقائي للفواصل (علاج مشكلة الحفظ العربي لـ CSV)
 st.sidebar.subheader("📤 رفع مخزون جديد بالكامل")
 uploaded_file = st.sidebar.file_uploader("اختر ملف المخزون الجديد:", type=["xlsx", "csv", "tsv", "txt"])
 
 if uploaded_file is not None:
     try:
-        # تحديد طريقة القراءة بناءً على نوع الملف المرفوع تلقائياً
         if uploaded_file.name.endswith('.csv'):
-            df = pd.read_csv(uploaded_file)
+            # قراءة عينة لفحص نوع الفاصلة المستخدمة (تجنب مشاكل الفاصلة المنقوطة العربي)
+            sample = uploaded_file.read(2048).decode('utf-8', errors='ignore')
+            uploaded_file.seek(0)
+            sep = ';' if ';' in sample and sample.count(';') > sample.count(',') else ','
+            df = pd.read_csv(uploaded_file, sep=sep)
         elif uploaded_file.name.endswith('.tsv') or uploaded_file.name.endswith('.txt'):
             df = pd.read_csv(uploaded_file, sep='\t')
         else:
             df = pd.read_excel(uploaded_file, engine='calamine')
             
-        # تحويل أسماء الأعمدة إلى حروف صغيرة وإزالة الفراغات لضمان التعرف عليها بأي شكل
+        # تنظيف وتوحيد أسماء الأعمدة لتصبح حروف صغيرة تماماً وبدون مسافات
         df.columns = [str(col).strip().lower() for col in df.columns]
         
         required_cols = ['id', 'name', 'balance', 'cost', 'price', 'expiry', 'min_balance']
@@ -150,10 +153,10 @@ if uploaded_file is not None:
                     }
                 st.session_state["inventory"] = new_inventory
                 save_data(DATA_FILE, new_inventory)
-                st.sidebar.success("✅ تم تحديث المستودع بالكامل بناءً على ملفك!")
+                st.sidebar.success("✅ تم تحديث المستودع بالكامل بنجاح!")
                 st.rerun()
         else:
-            st.sidebar.error("❌ تأكد أن ملفك يحتوي على العناوين التالية في السطر الأول تماماً: id, name, balance, cost, price, expiry, min_balance")
+            st.sidebar.error("❌ تأكد أن السطر الأول في ملفك يحتوي تماماً على العناوين الإنجليزية التالية بدون تعديل: id, name, balance, cost, price, expiry, min_balance")
     except Exception as e:
         st.sidebar.error(f"خطأ أثناء قراءة الملف: {str(e)}")
 
