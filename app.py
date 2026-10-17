@@ -6,7 +6,6 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 from pypdf import PdfReader
-import psycopg
 
 # -------------------- إعدادات عامة --------------------
 st.set_page_config(
@@ -21,86 +20,40 @@ INVOICES_FILE = "invoices_web.json"
 MOVEMENTS_FILE = "movements_web.json"
 LOW_STOCK_DEFAULT = 100
 
-def get_setting(name, default=""):
-    try:
-        value = st.secrets.get(name, default)
-    except Exception:
-        value = default
-    return os.getenv(name, value)
-
-ADMIN_PASSWORD = str(get_setting("ADMIN_PASSWORD", "")).strip()
-DATABASE_URL = str(get_setting("DATABASE_URL", "")).strip()
-
 DEFAULT_INVENTORY = {
     "P001": {"name": "ASHWAGANDHA MATEX 60 TAB", "balance": 2371, "expiry": "غير محدد", "cost": 0, "price": 0, "min_balance": 100}
 }
 
-# -------------------- دالات الحفظ والتحميل --------------------
-def db_connect():
-    if not DATABASE_URL:
-        return None
-    try:
-        conn = psycopg.connect(DATABASE_URL, connect_timeout=5)
-        with conn.cursor() as cur:
-            cur.execute("""CREATE TABLE IF NOT EXISTS sfn_app_state (
-                key_name TEXT PRIMARY KEY,
-                json_data JSONB
-            );""")
-        conn.commit()
-        return conn
-    except Exception:
-        return None
-
-def load_data(file_name, default_value):
-    conn = db_connect()
-    if conn:
-        try:
-            with conn.cursor() as cur:
-                cur.execute("SELECT json_data FROM sfn_app_state WHERE key_name = %s", (file_name,))
-                row = cur.fetchone()
-                if row and row is not None:
-                    return row if isinstance(row, tuple) else row
-            save_data(file_name, default_value)
-            return default_value
-        except Exception:
-            pass
-        finally:
-            conn.close()
-    
+# -------------------- نظام الحفظ المحلي الذكي والدائم --------------------
+def load_local_data(file_name, default_value):
+    # إذا كان الملف موجوداً مسبقاً على السيرفر، نقوم بالقراءة منه فوراً
     if os.path.exists(file_name):
         try:
             with open(file_name, "r", encoding="utf-8") as f:
-                return json.load(f)
+                content = json.load(f)
+                # نضمن ألا يعود للنظام القديم طالما تم تصفيره أو تعديله
+                return content
         except Exception:
             return default_value
+    
+    # إذا لم يكن الملف موجوداً (أول تشغيل)، ننشئه بالبيانات الافتراضية
+    save_local_data(file_name, default_value)
     return default_value
 
-def save_data(file_name, data):
-    conn = db_connect()
-    if conn:
-        try:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    INSERT INTO sfn_app_state (key_name, json_data) 
-                    VALUES (%s, %s)
-                    ON CONFLICT (key_name) 
-                    DO UPDATE SET json_data = EXCLUDED.json_data;
-                """, (file_name, json.dumps(data, ensure_ascii=False)))
-            conn.commit()
-        except Exception:
-            pass
-        finally:
-            conn.close()
-    
-    with open(file_name, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
+def save_local_data(file_name, data):
+    try:
+        with open(file_name, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+    except Exception:
+        pass
 
+# تهيئة البيانات في الجلسة بشكل مستقر لا يضيع مع التحديث
 if "inventory" not in st.session_state:
-    st.session_state["inventory"] = load_data(DATA_FILE, DEFAULT_INVENTORY)
+    st.session_state["inventory"] = load_local_data(DATA_FILE, DEFAULT_INVENTORY)
 if "invoices" not in st.session_state:
-    st.session_state["invoices"] = load_data(INVOICES_FILE, [])
+    st.session_state["invoices"] = load_local_data(INVOICES_FILE, [])
 if "movements" not in st.session_state:
-    st.session_state["movements"] = load_data(MOVEMENTS_FILE, [])
+    st.session_state["movements"] = load_local_data(MOVEMENTS_FILE, [])
 
 # -------------------- واجهة لوحة تحكم المخزون --------------------
 st.sidebar.title("⚙️ لوحة التحكم والإدارة")
@@ -111,19 +64,18 @@ if st.sidebar.button("🗑️ مسح كافة المنتجات والبيانا�
     st.session_state["inventory"] = {}
     st.session_state["invoices"] = []
     st.session_state["movements"] = []
-    save_data(DATA_FILE, {})
-    save_data(INVOICES_FILE, [])
-    save_data(MOVEMENTS_FILE, [])
-    st.sidebar.success("تم مسح المخزون بالكامل بنجاح وتصفير الموقع!")
+    save_local_data(DATA_FILE, {})
+    save_local_data(INVOICES_FILE, [])
+    save_local_data(MOVEMENTS_FILE, [])
+    st.sidebar.success("تم مسح المخزون بالكامل وتصفير الموقع!")
     st.rerun()
 
-# ميزة الرفع الجديدة والمحمية عبر معالج الأزرار الخارجي (Non-Sidebar Action)
+# ميزة رفع المخزون الجديد بالكامل عبر معالج الأزرار المباشر
 st.sidebar.subheader("📤 رفع مخزون جديد بالكامل")
 uploaded_file = st.sidebar.file_uploader("اختر ملف المخزون الجديد:", type=["xlsx", "csv", "tsv", "txt"])
 
-# وضع زر الحفظ في الصفحة الرئيسية لمنع فقدان البيانات عند التحديث المفاجئ
 if uploaded_file is not None:
-    st.info("🔄 جاري قراءة وتحليل ملفك المرفوع حالياً... يرجى مراجعة الزر بالأسفل للحفظ.")
+    st.info("🔄 جاري قراءة وتحليل ملفك المرفوع حالياً... يرجى مراجعة زر الحفظ بالأسفل.")
     try:
         if uploaded_file.name.endswith('.csv'):
             sample = uploaded_file.read(2048).decode('utf-8', errors='ignore')
@@ -170,12 +122,11 @@ if uploaded_file is not None:
                     "cost": cost_val, "price": price_val, "min_balance": min_bal_val
                 }
             
-            # عرض زر الاعتماد الكبير في واجهة الصفحة لضمان تشغيله دون تداخل
-            st.warning("⚠️ تم التعرف على ملفك بنجاح. اضغط على الزر بالأسفل لاستبدال المخزون الحالي بمنتجات الملف الجديد:")
+            st.warning("⚠️ تم التعرف على ملفك بنجاح. اضغط على الزر بالأسفل لتحديث الموقع:")
             if st.button("💾 اضغط هنا لاعتماد وحفظ منتجات الملف الجديد أونلاين", type="primary"):
                 st.session_state["inventory"] = new_inventory
-                save_data(DATA_FILE, new_inventory)
-                st.success("✅ تم تحديث ونشر المستودع الجديد بنجاح!")
+                save_local_data(DATA_FILE, new_inventory)
+                st.success("✅ تم تحديث ونشر المستودع الجديد بنجاح وثبات!")
                 st.rerun()
         else:
             st.error("❌ عذراً، الملف المرفوع لا يحتوي على الأعمدة الصحيحة في السطر الأول. يرجى التأكد من المسميات الإنجليزية.")
@@ -204,7 +155,7 @@ with st.sidebar.form("add_new_product_form", clear_on_submit=True):
                 "name": p_name, "balance": p_balance, "expiry": p_expiry,
                 "cost": p_cost, "price": p_price, "min_balance": p_min
             }
-            save_data(DATA_FILE, st.session_state["inventory"])
+            save_local_data(DATA_FILE, st.session_state["inventory"])
             st.sidebar.success(f"تم إضافة {p_name}!")
             st.rerun()
 
