@@ -122,20 +122,19 @@ if is_admin:
         st.rerun()
 
     st.sidebar.subheader("➕ إضافة منتج جديد تماماً")
-    with st.sidebar.form("add_new_product_form", clear_on_submit=True):
-        p_id = st.text_input("كود المنتج الجديد (مثل P039):").strip()
-        p_name = st.text_input("اسم المنتج الجديد:").strip()
-        p_balance = st.number_input("الرصيد الابتدائي:", min_value=0, value=0, step=1)
-        p_cost = st.number_input("التكلفة:", min_value=0.0, value=0.0)
-        p_price = st.number_input("السعر:", min_value=0.0, value=0.0)
-        p_expiry = st.text_input("الصلاحية:", value="غير محدد")
-        p_min = st.number_input("الحد الأدنى:", min_value=0, value=100)
-        submit_product = st.form_submit_button("حفظ المنتج يدوياً")
-        if submit_product:
-            if not p_id or not p_name:
-                st.sidebar.error("يرجى إدخال كود واسم المنتج!")
-            elif p_id in st.session_state["master_inventory"]:
-                st.sidebar.error("هذا الكود مستخدم بالفعل!")
-            else:
-                st.session_state["master_inventory"][p_id] = {
-                    "name": p_name, 
+    p_id = st.sidebar.text_input("كود المنتج الجديد (مثل P039):").strip()
+    p_name = st.sidebar.text_input("اسم المنتج الجديد:").strip()
+    p_balance = st.sidebar.number_input("الرصيد الابتدائي:", min_value=0, value=0, step=1)
+    p_cost = st.sidebar.number_input("التكلفة:", min_value=0.0, value=0.0)
+    p_price = st.sidebar.number_input("السعر:", min_value=0.0, value=0.0)
+    p_expiry = st.sidebar.text_input("الصلاحية:", value="غير محدد")
+    p_min = st.sidebar.number_input("الحد الأدنى:", min_value=0, value=100)
+    
+    if st.sidebar.button("حفظ المنتج الجديد"):
+        if not p_id or not p_name:
+            st.sidebar.error("يرجى إدخال كود واسم المنتج!")
+        elif p_id in st.session_state["master_inventory"]:
+            st.sidebar.error("هذا الكود مستخدم بالفعل!")
+        else:
+            st.session_state["master_inventory"][p_id] = {"name": p_name, "balance": p_balance, "expiry": p_expiry, "cost": p_cost, "price": p_price, "min_balance": p_min}
+            st.sidebar.success(f"تم إضافة {p_name} بنجاح!")
