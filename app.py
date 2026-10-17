@@ -72,14 +72,12 @@ DEFAULT_INVENTORY = {
     "P038": {"name": "shartic", "balance": 1376, "expiry": "غير محدد", "cost": 0, "price": 0, "min_balance": 100}
 }
 
-STATE_KEYS = {DATA_FILE: "inventory", INVOICES_FILE: "invoices", MOVEMENTS_FILE: "movements"}
-
-# -------------------- دالات الاتصال والحفظ --------------------
+# -------------------- دالات الحفظ والتحميل --------------------
 def db_connect():
     if not DATABASE_URL:
         return None
     try:
-        conn = psycopg.connect(DATABASE_URL, connect_timeout=8)
+        conn = psycopg.connect(DATABASE_URL, connect_timeout=5)
         with conn.cursor() as cur:
             cur.execute("""CREATE TABLE IF NOT EXISTS sfn_app_state (
                 key_name TEXT PRIMARY KEY,
@@ -97,9 +95,9 @@ def load_data(file_name, default_value):
             with conn.cursor() as cur:
                 cur.execute("SELECT json_data FROM sfn_app_state WHERE key_name = %s", (file_name,))
                 row = cur.fetchone()
-                if row:
+                if row and row[0] is not None:
                     return row[0]
-            # تهيئة قاعدة البيانات فقط إذا كانت فارغة تماماً لأول مرة
+            # إذا كانت قاعدة البيانات فارغة تماماً، ننشئها بالقيمة الافتراضية
             save_data(file_name, default_value)
             return default_value
         except Exception:
@@ -108,8 +106,11 @@ def load_data(file_name, default_value):
             conn.close()
     
     if os.path.exists(file_name):
-        with open(file_name, "r", encoding="utf-8") as f:
-            return json.load(f)
+        try:
+            with open(file_name, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return default_value
     return default_value
 
 def save_data(file_name, data):
@@ -132,12 +133,13 @@ def save_data(file_name, data):
     with open(file_name, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-# التأكد من عدم استدعاء القائمة الافتراضية إذا تم اختيار تصفير المخزون مسبقاً
-if "initialized" not in st.session_state:
+# تهيئة الجلسة بشكل مستقل ومستقر لمنع تكرار القائمة الافتراضية بعد مسحها
+if "inventory" not in st.session_state:
     st.session_state["inventory"] = load_data(DATA_FILE, DEFAULT_INVENTORY)
+if "invoices" not in st.session_state:
     st.session_state["invoices"] = load_data(INVOICES_FILE, [])
+if "movements" not in st.session_state:
     st.session_state["movements"] = load_data(MOVEMENTS_FILE, [])
-    st.session_state["initialized"] = True
 
 # -------------------- واجهة لوحة تحكم المخزون --------------------
 st.sidebar.title("⚙️ لوحة التحكم والإدارة")
@@ -148,7 +150,6 @@ if st.sidebar.button("🗑️ مسح كافة المنتجات والبيانا�
     st.session_state["inventory"] = {}
     st.session_state["invoices"] = []
     st.session_state["movements"] = []
-    # حفظ القاموس فارغاً في السيرفر وقاعدة البيانات لمنع استعادة المخزون القديم
     save_data(DATA_FILE, {})
     save_data(INVOICES_FILE, [])
     save_data(MOVEMENTS_FILE, [])
@@ -181,3 +182,4 @@ with st.sidebar.form("add_new_product_form", clear_on_submit=True):
                 "price": p_price,
                 "min_balance": p_min
             }
+            save_data(DATA_FILE, st.session_state["inventory"])
