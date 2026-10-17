@@ -89,22 +89,17 @@ if is_admin:
     st.write("## ⚡ التحديث اليومي السريع للمخزون")
     with st.expander("🛠️ اضغط هنا لزيادة أو إنقاص كمية أي منتج بلمحة بصر", expanded=True):
         col1, col2, col3, col4 = st.columns(4)
-        
         with col1:
             product_options = {k: f"{k} - {v['name']} (الحالي: {v['balance']})" for k, v in st.session_state["master_inventory"].items()}
             selected_prod_key = st.selectbox("اختر المنتج المراد تعديله:", options=list(product_options.keys()), format_func=lambda x: product_options[x])
-            
         with col2:
             action = st.radio("نوع العملية اليومية:", ["➕ زيادة (وارد)", "➖ نقصان (منصرف)"])
-            
         with col3:
             amount = st.number_input("الكمية المراد تعديلها:", min_value=1, value=1, step=1)
-            
         with col4:
             st.write("<br>", unsafe_allow_html=True)
             if st.button("🚀 تحديث الكمية الآن", type="primary", use_container_width=True):
                 current_balance = st.session_state["master_inventory"][selected_prod_key]["balance"]
-                
                 if action == "➕ زيادة (وارد)":
                     st.session_state["master_inventory"][selected_prod_key]["balance"] = current_balance + amount
                     st.success(f"✅ تم زيادة مخزون {selected_prod_key} بمقدار {amount} قطعة!")
@@ -119,7 +114,6 @@ if is_admin:
     # -------------------- واجهة تحكم المدير الجانبية --------------------
     st.sidebar.markdown("---")
     st.sidebar.title("⚙️ لوحة الإدارة والتحكم")
-    
     st.sidebar.subheader("🚨 تصفير المستودع")
     confirm_delete = st.sidebar.checkbox("أنا متأكد من رغبتي في مسح كل المخزون الحالي")
     if st.sidebar.button("🗑️ مسح كافة المنتجات والبيانات", disabled=not confirm_delete):
@@ -136,12 +130,11 @@ if is_admin:
         p_price = st.number_input("السعر:", min_value=0.0, value=0.0)
         p_expiry = st.text_input("الصلاحية:", value="غير محدد")
         p_min = st.number_input("الحد الأدنى:", min_value=0, value=100)
-        
         submit_product = st.form_submit_button("حفظ المنتج يدوياً")
-        
         if submit_product:
             if not p_id or not p_name:
                 st.sidebar.error("يرجى إدخال كود واسم المنتج!")
             elif p_id in st.session_state["master_inventory"]:
                 st.sidebar.error("هذا الكود مستخدم بالفعل!")
             else:
+                st.session_state["master_inventory"][p_id] = {
