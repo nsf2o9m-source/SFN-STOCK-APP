@@ -6,6 +6,7 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 from pypdf import PdfReader
+import psycopg
 
 # -------------------- إعدادات عامة --------------------
 st.set_page_config(
@@ -23,14 +24,56 @@ LOW_STOCK_DEFAULT = 100
 # لا تضع كلمة مرور المدير داخل الكود. أضف ADMIN_PASSWORD إلى Streamlit Secrets.
 ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD", os.getenv("ADMIN_PASSWORD", ""))
 
-DEFAULT_INVENTORY = {
-    "1": {"name": "UGC COLLAGEN 10 SACHETS", "balance": 150, "expiry": "2027/12"},
-    "2": {"name": "VITAMIN C 1000MG", "balance": 80, "expiry": "2027/05"},
-    "3": {"name": "OMEGA 3 FISH OIL", "balance": 200, "expiry": "2028/01"},
-}
+DEFAULT_INVENTORY = {}
+DATABASE_URL = st.secrets.get("DATABASE_URL", os.getenv("DATABASE_URL", "")).strip()
+STATE_KEYS = {DATA_FILE: "inventory", INVOICES_FILE: "invoices", MOVEMENTS_FILE: "movements"}
+
+
+def db_connect():
+    if not DATABASE_URL:
+        return None
+    conn = psycopg.connect(DATABASE_URL, connect_timeout=8)
+    with conn.cursor() as cur:
+        cur.execute("""CREATE TABLE IF NOT EXISTS sfn_app_state (
+            state_key TEXT PRIMARY KEY,
+            payload JSONB NOT NULL,
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )""")
+    conn.commit()
+    return conn
+
+
+def db_read(key, fallback):
+    with db_connect() as conn:
+        if conn is None:
+            return None
+        with conn.cursor() as cur:
+            cur.execute("SELECT payload FROM sfn_app_state WHERE state_key = %s", (key,))
+            row = cur.fetchone()
+            return row[0] if row else (fallback.copy() if isinstance(fallback, dict) else list(fallback))
+
+
+def db_write(key, value):
+    with db_connect() as conn:
+        if conn is None:
+            return False
+        with conn.cursor() as cur:
+            cur.execute("""INSERT INTO sfn_app_state (state_key, payload, updated_at)
+                VALUES (%s, %s::jsonb, NOW())
+                ON CONFLICT (state_key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()""",
+                (key, json.dumps(value, ensure_ascii=False)))
+        conn.commit()
+        return True
+
 
 
 def read_json(path, fallback):
+    if DATABASE_URL:
+        try:
+            return db_read(STATE_KEYS.get(path, path), fallback)
+        except Exception as exc:
+            st.error(f"تعذر الاتصال بقاعدة البيانات الدائمة: {exc}")
+            st.stop()
     if not os.path.exists(path):
         return fallback.copy() if isinstance(fallback, dict) else list(fallback)
     try:
@@ -43,6 +86,13 @@ def read_json(path, fallback):
 
 
 def write_json(path, value):
+    if DATABASE_URL:
+        try:
+            db_write(STATE_KEYS.get(path, path), value)
+            return
+        except Exception as exc:
+            st.error(f"تعذر حفظ البيانات في قاعدة البيانات الدائمة: {exc}")
+            st.stop()
     temp_path = path + ".tmp"
     with open(temp_path, "w", encoding="utf-8") as file:
         json.dump(value, file, ensure_ascii=False, indent=2)
@@ -126,6 +176,29 @@ def extract_data_from_pdf(pdf_file):
     return actions, None
 
 
+# مسح الأصناف الحالية مرة واحدة بناءً على طلب صاحب التطبيق، مع الاحتفاظ بالفواتير والحركات.
+def clear_inventory_once():
+    marker = "inventory_cleared_for_new_catalog_v1"
+    if DATABASE_URL:
+        if db_read(marker, False):
+            return
+        db_write(STATE_KEYS[DATA_FILE], {})
+        db_write(marker, True)
+    else:
+        marker_file = ".inventory_cleared_for_new_catalog_v1"
+        if os.path.exists(marker_file):
+            return
+        write_json(DATA_FILE, {})
+        with open(marker_file, "w", encoding="utf-8") as marker_handle:
+            marker_handle.write(datetime.now().isoformat())
+
+
+try:
+    clear_inventory_once()
+except Exception as exc:
+    st.error(f"تعذر تنفيذ تهيئة قائمة الأصناف: {exc}")
+    st.stop()
+
 inventory = load_inventory()
 invoices = read_json(INVOICES_FILE, [])
 movements = read_json(MOVEMENTS_FILE, [])
@@ -166,6 +239,10 @@ with st.sidebar:
     st.divider()
     low_limit = st.number_input("حد تنبيه نقص المخزون الافتراضي", min_value=0, value=LOW_STOCK_DEFAULT, step=5)
     st.caption("يمكن تخصيص حد التنبيه لكل صنف من صفحة الأصناف.")
+    if DATABASE_URL:
+        st.success("حفظ دائم مفعّل: قاعدة بيانات PostgreSQL")
+    else:
+        st.warning("قاعدة البيانات الدائمة غير مربوطة. أضف DATABASE_URL في Streamlit Secrets؛ الحفظ الحالي محلي وقد لا يستمر بعد إعادة التشغيل.")
 
 # Normalize optional fields in memory
 for product in inventory.values():
@@ -470,4 +547,4 @@ with tab_pdf:
                         st.success("تم تحديث المخزون وتسجيل الحركة.")
                     st.rerun()
 
-st.caption("SFN Stock App • احتفظ بنسخة احتياطية دورية من ملفات البيانات. تخزين JSON المحلي قد لا يكون دائمًا على الاستضافات السحابية.")
+st.caption("SFN Stock App • عند ضبط DATABASE_URL تُحفظ الأصناف والفواتير والحركات في PostgreSQL. من دونها يُستخدم تخزين محلي غير مضمون الاستمرارية.")
