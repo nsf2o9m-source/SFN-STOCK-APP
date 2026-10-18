@@ -24,7 +24,7 @@ def get_setting(name, default=""):
 
 ADMIN_PASSWORD = str(get_setting("ADMIN_PASSWORD", "Sfn2026")).strip()
 
-# القاموس المبدئي للـ 38 منتجاً (يستخدم فقط كنسخة احتياطية إذا واجه السحاب أي عطل)
+# القاموس المبدئي للـ 38 منتجاً
 INITIAL_DATA = {
     "P001": {"name": "ASHWAGANDHA MATEX 60 TAB", "balance": 2371, "expiry": "غير محدد", "cost": 0.0, "price": 0.0, "min_balance": 100},
     "P002": {"name": "BLACK SEED OIL 1000MG 60CAP", "balance": 69, "expiry": "غير محدد", "cost": 0.0, "price": 0.0, "min_balance": 100},
@@ -66,17 +66,17 @@ INITIAL_DATA = {
     "P038": {"name": "shartic", "balance": 1376, "expiry": "غير محدد", "cost": 0.0, "price": 0.0, "min_balance": 100}
 }
 
-# 🌐 دالتين ذكيتين لقراءة وحفظ البيانات من الـ Session State بشكل يمنع تعليق السيرفر
-def fetch_online_inventory():
-    # سيقوم السيرفر بقراءتها بشكل آمن ومستمر طالما الجلسة نشطة
+# 🌐 دالة ذكية لقراءة المخزون من السحابة مباشرة
+def load_cloud_inventory():
+    if "LIVE_INVENTORY" in st.secrets:
+        try:
+            return json.loads(st.secrets["LIVE_INVENTORY"])
+        except:
+            return INITIAL_DATA
     return INITIAL_DATA
 
-def push_online_inventory(data):
-    # وظيفة برمجية جاهزة للربط مع أي داتا بيز خارجية مستقبلاً
-    pass
-
 if "master_inventory" not in st.session_state:
-    st.session_state["master_inventory"] = fetch_online_inventory()
+    st.session_state["master_inventory"] = load_cloud_inventory()
 
 # -------------------- نظام الأمان والصلاحيات --------------------
 st.sidebar.title("🔐 صلاحيات النظام")
@@ -102,7 +102,7 @@ if is_admin:
             product_options = {k: f"{k} - {v['name']} (الحالي: {v['balance']})" for k, v in st.session_state["master_inventory"].items()}
             selected_prod_key = st.selectbox("اختر المنتج المراد تعديله:", options=list(product_options.keys()), format_func=lambda x: product_options[x])
         with col2:
-            action = st.radio("نوع العملية اليومية:", ["➕ زيادة (وارد)", ["➖ نقصان (منصرف)"]])
+            action = st.radio("نوع العملية اليومية:", ["➕ زيادة (وارد)", "➖ نقصان (منصرف)"])
         with col3:
             amount = st.number_input("الكمية المراد تعديلها:", min_value=1, value=1, step=1)
         with col4:
@@ -111,16 +111,21 @@ if is_admin:
                 current_balance = st.session_state["master_inventory"][selected_prod_key]["balance"]
                 if action == "➕ زيادة (وارد)":
                     st.session_state["master_inventory"][selected_prod_key]["balance"] = current_balance + amount
-                    st.success("✅ تم تحديث المخزون بنجاح!")
+                    st.success("✅ تم التحديث في الذاكرة الحالية!")
                 else:
                     if current_balance >= amount:
                         st.session_state["master_inventory"][selected_prod_key]["balance"] = current_balance - amount
-                        st.success("✅ تم تحديث المخزون بنجاح!")
+                        st.success("✅ تم التحديث في الذاكرة الحالية!")
                     else:
                         st.error("❌ المخزون الحالي لا يكفي!")
-                push_online_inventory(st.session_state["master_inventory"])
                 st.rerun()
+
+    # زر توليد النص السحابي الجاهز للنسخ
+    st.write("### 🌐 المزامنة وحفظ الأرقام في السحابة")
+    if st.button("🔗 توليد النص السحابي لتثبيت الأرقام الحالية"):
+        cloud_text = json.dumps(st.session_state["master_inventory"], ensure_ascii=False)
+        st.info("قم بنسخ النص البرمجي الكامل الموجود في الصندوق بالأسفل وضعه داخل لوحة تحكم السيرفر (الخطوة 2):")
+        st.code(f'LIVE_INVENTORY = \'{cloud_text}\'', language="toml")
 
 # ------------------------------------------------------------
 # الصق بقية كود عرض الجدول الأصلي الخاص بك من هنا لتعمل الشاشة...
-
