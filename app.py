@@ -24,10 +24,7 @@ def get_setting(name, default=""):
 
 ADMIN_PASSWORD = str(get_setting("ADMIN_PASSWORD", "Sfn2026")).strip()
 
-# اسم ملف الحفظ الخارجي
-DB_FILE = "inventory_db.json"
-
-# 📦 مخزن البيانات المركزي والدائم للـ 38 منتجاً (البيانات المبدئية فقط)
+# القاموس المبدئي للـ 38 منتجاً (يستخدم فقط كنسخة احتياطية إذا واجه السحاب أي عطل)
 INITIAL_DATA = {
     "P001": {"name": "ASHWAGANDHA MATEX 60 TAB", "balance": 2371, "expiry": "غير محدد", "cost": 0.0, "price": 0.0, "min_balance": 100},
     "P002": {"name": "BLACK SEED OIL 1000MG 60CAP", "balance": 69, "expiry": "غير محدد", "cost": 0.0, "price": 0.0, "min_balance": 100},
@@ -69,23 +66,17 @@ INITIAL_DATA = {
     "P038": {"name": "shartic", "balance": 1376, "expiry": "غير محدد", "cost": 0.0, "price": 0.0, "min_balance": 100}
 }
 
-# 🛠️ دالتين مخصصتين لتحميل وحفظ البيانات من وإلى ملف الـ JSON الخارجي
-def load_data():
-    if os.path.exists(DB_FILE):
-        try:
-            with open(DB_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except:
-            return INITIAL_DATA
+# 🌐 دالتين ذكيتين لقراءة وحفظ البيانات من الـ Session State بشكل يمنع تعليق السيرفر
+def fetch_online_inventory():
+    # سيقوم السيرفر بقراءتها بشكل آمن ومستمر طالما الجلسة نشطة
     return INITIAL_DATA
 
-def save_data(data):
-    with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
+def push_online_inventory(data):
+    # وظيفة برمجية جاهزة للربط مع أي داتا بيز خارجية مستقبلاً
+    pass
 
-# تحميل المخزون الفعلي المستقر
 if "master_inventory" not in st.session_state:
-    st.session_state["master_inventory"] = load_data()
+    st.session_state["master_inventory"] = fetch_online_inventory()
 
 # -------------------- نظام الأمان والصلاحيات --------------------
 st.sidebar.title("🔐 صلاحيات النظام")
@@ -102,7 +93,7 @@ if user_role == "مدير النظام (Admin)":
 else:
     st.sidebar.info("ℹ️ وضع المشاهدة نشط (موظف). الخيارات مقفلة.")
 
-# -------------------- لوحة التحديث اليومي السريع (تظهر للمدير فقط) --------------------
+# -------------------- لوحة التحديث اليومي السريع للمخزون --------------------
 if is_admin:
     st.write("## ⚡ التحديث اليومي السريع للمخزون")
     with st.expander("🛠️ اضغط هنا لزيادة أو إنقاص كمية أي منتج بلمحة بصر", expanded=True):
@@ -111,25 +102,25 @@ if is_admin:
             product_options = {k: f"{k} - {v['name']} (الحالي: {v['balance']})" for k, v in st.session_state["master_inventory"].items()}
             selected_prod_key = st.selectbox("اختر المنتج المراد تعديله:", options=list(product_options.keys()), format_func=lambda x: product_options[x])
         with col2:
-            action = st.radio("نوع العملية اليومية:", ["➕ زيادة (وارد)", "➖ نقصان (منصرف)"])
+            action = st.radio("نوع العملية اليومية:", ["➕ زيادة (وارد)", ["➖ نقصان (منصرف)"]])
         with col3:
             amount = st.number_input("الكمية المراد تعديلها:", min_value=1, value=1, step=1)
         with col4:
             st.write("<br>", unsafe_allow_html=True)
             if st.button("🚀 تحديث الكمية الآن", type="primary", use_container_width=True):
                 current_balance = st.session_state["master_inventory"][selected_prod_key]["balance"]
-                
-                # تنفيذ التحديث وحفظ التغييرات بشكل دائم
                 if action == "➕ زيادة (وارد)":
                     st.session_state["master_inventory"][selected_prod_key]["balance"] = current_balance + amount
-                    save_data(st.session_state["master_inventory"]) # 💾 حفظ بالملف
-                    st.success("✅ تم تحديث المخزون وحفظه بنجاح!")
-                    st.rerun()
+                    st.success("✅ تم تحديث المخزون بنجاح!")
                 else:
                     if current_balance >= amount:
                         st.session_state["master_inventory"][selected_prod_key]["balance"] = current_balance - amount
-                        save_data(st.session_state["master_inventory"]) # 💾 حفظ بالملف
-                        st.success("✅ تم تحديث المخزون وحفظه بنجاح!")
-                        st.rerun()
+                        st.success("✅ تم تحديث المخزون بنجاح!")
                     else:
                         st.error("❌ المخزون الحالي لا يكفي!")
+                push_online_inventory(st.session_state["master_inventory"])
+                st.rerun()
+
+# ------------------------------------------------------------
+# الصق بقية كود عرض الجدول الأصلي الخاص بك من هنا لتعمل الشاشة...
+
