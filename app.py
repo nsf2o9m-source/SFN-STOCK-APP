@@ -24,7 +24,10 @@ def get_setting(name, default=""):
 
 ADMIN_PASSWORD = str(get_setting("ADMIN_PASSWORD", "Sfn2026")).strip()
 
-# 📦 مخزن البيانات المركزي والدائم للـ 38 منتجاً (مقاوم للتصفير والمسح)
+# اسم ملف الحفظ الخارجي
+DB_FILE = "inventory_db.json"
+
+# 📦 مخزن البيانات المركزي والدائم للـ 38 منتجاً (البيانات المبدئية فقط)
 INITIAL_DATA = {
     "P001": {"name": "ASHWAGANDHA MATEX 60 TAB", "balance": 2371, "expiry": "غير محدد", "cost": 0.0, "price": 0.0, "min_balance": 100},
     "P002": {"name": "BLACK SEED OIL 1000MG 60CAP", "balance": 69, "expiry": "غير محدد", "cost": 0.0, "price": 0.0, "min_balance": 100},
@@ -66,8 +69,23 @@ INITIAL_DATA = {
     "P038": {"name": "shartic", "balance": 1376, "expiry": "غير محدد", "cost": 0.0, "price": 0.0, "min_balance": 100}
 }
 
+# 🛠️ دالتين مخصصتين لتحميل وحفظ البيانات من وإلى ملف الـ JSON الخارجي
+def load_data():
+    if os.path.exists(DB_FILE):
+        try:
+            with open(DB_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            return INITIAL_DATA
+    return INITIAL_DATA
+
+def save_data(data):
+    with open(DB_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+# تحميل المخزون الفعلي المستقر
 if "master_inventory" not in st.session_state:
-    st.session_state["master_inventory"] = INITIAL_DATA
+    st.session_state["master_inventory"] = load_data()
 
 # -------------------- نظام الأمان والصلاحيات --------------------
 st.sidebar.title("🔐 صلاحيات النظام")
@@ -100,48 +118,18 @@ if is_admin:
             st.write("<br>", unsafe_allow_html=True)
             if st.button("🚀 تحديث الكمية الآن", type="primary", use_container_width=True):
                 current_balance = st.session_state["master_inventory"][selected_prod_key]["balance"]
+                
+                # تنفيذ التحديث وحفظ التغييرات بشكل دائم
                 if action == "➕ زيادة (وارد)":
                     st.session_state["master_inventory"][selected_prod_key]["balance"] = current_balance + amount
-                    st.success("✅ تم تحديث المخزون بنجاح!")
+                    save_data(st.session_state["master_inventory"]) # 💾 حفظ بالملف
+                    st.success("✅ تم تحديث المخزون وحفظه بنجاح!")
+                    st.rerun()
                 else:
                     if current_balance >= amount:
                         st.session_state["master_inventory"][selected_prod_key]["balance"] = current_balance - amount
-                        st.success("✅ تم تحديث المخزون بنجاح!")
+                        save_data(st.session_state["master_inventory"]) # 💾 حفظ بالملف
+                        st.success("✅ تم تحديث المخزون وحفظه بنجاح!")
+                        st.rerun()
                     else:
                         st.error("❌ المخزون الحالي لا يكفي!")
-                st.rerun()
-
-    # -------------------- واجهة تحكم المدير الجانبية --------------------
-    st.sidebar.markdown("---")
-    st.sidebar.title("⚙️ لوحة الإدارة والتحكم")
-    p_id = st.sidebar.text_input("كود المنتج الجديد (مثل P039):").strip()
-    p_name = st.sidebar.text_input("اسم المنتج الجديد:").strip()
-    p_balance = st.sidebar.number_input("الرصيد الابتدائي:", min_value=0, value=0, step=1)
-    
-    if st.sidebar.button("حفظ المنتج الجديد"):
-        if p_id and p_name:
-            if p_id not in st.session_state["master_inventory"]:
-                st.session_state["master_inventory"][p_id] = {
-                    "name": p_name, "balance": p_balance, "expiry": "غير محدد", "cost": 0.0, "price": 0.0, "min_balance": 100
-                }
-                st.sidebar.success(f"تم إضافة {p_name} بنجاح!")
-                st.rerun()
-            else:
-                st.sidebar.error("هذا الكود مستخدم بالفعل!")
-
-# -------------------- عرض المخزون الثابت والمباشر --------------------
-st.write("---")
-st.write("### 📦 المخزون الحالي في النظام أونلاين:")
-
-# قراءة وعرض الجدول مباشرة من مصفوفة البيانات الثابتة لضمان ظهوره الحتمي للموظف والمدير
-df_inv = pd.DataFrame.from_dict(st.session_state["master_inventory"], orient='index')
-
-if is_admin:
-    st.info("💡 يمكنك أيضاً تعديل التفاصيل الأخرى مباشرة من الجدول بالأسفل ثم اضغط حفظ:")
-    edited_df = st.data_editor(df_inv, use_container_width=True)
-    if st.button("💾 حفظ تعديلات الجدول الكلية"):
-        st.session_state["master_inventory"] = edited_df.to_dict(orient='index')
-        st.success("✅ تم حفظ وتثبيت تعديلات الجدول بنجاح!")
-        st.rerun()
-else:
-    st.dataframe(df_inv, use_container_width=True)
