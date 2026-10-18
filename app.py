@@ -24,7 +24,7 @@ def get_setting(name, default=""):
 
 ADMIN_PASSWORD = str(get_setting("ADMIN_PASSWORD", "Sfn2026")).strip()
 
-# القاموس المبدئي للـ 38 منتجاً
+# 📦 القاموس المبدئي للـ 38 منتجاً
 INITIAL_DATA = {
     "P001": {"name": "ASHWAGANDHA MATEX 60 TAB", "balance": 2371, "expiry": "غير محدد", "cost": 0.0, "price": 0.0, "min_balance": 100},
     "P002": {"name": "BLACK SEED OIL 1000MG 60CAP", "balance": 69, "expiry": "غير محدد", "cost": 0.0, "price": 0.0, "min_balance": 100},
@@ -66,7 +66,7 @@ INITIAL_DATA = {
     "P038": {"name": "shartic", "balance": 1376, "expiry": "غير محدد", "cost": 0.0, "price": 0.0, "min_balance": 100}
 }
 
-# 🌐 دالة ذكية لقراءة المخزون من السحابة مباشرة
+# 🌐 دالة ذكية لقراءة المخزون الثابت من السحابة مباشرة
 def load_cloud_inventory():
     if "LIVE_INVENTORY" in st.secrets:
         try:
@@ -111,21 +111,23 @@ if is_admin:
                 current_balance = st.session_state["master_inventory"][selected_prod_key]["balance"]
                 if action == "➕ زيادة (وارد)":
                     st.session_state["master_inventory"][selected_prod_key]["balance"] = current_balance + amount
-                    st.success("✅ تم التحديث في الذاكرة الحالية!")
+                    st.success("✅ تم تحديث المخزون بنجاح!")
                 else:
                     if current_balance >= amount:
                         st.session_state["master_inventory"][selected_prod_key]["balance"] = current_balance - amount
-                        st.success("✅ تم التحديث في الذاكرة الحالية!")
+                        st.success("✅ تم تحديث المخزون بنجاح!")
                     else:
                         st.error("❌ المخزون الحالي لا يكفي!")
                 st.rerun()
 
-    # زر توليد النص السحابي الجاهز للنسخ
-    st.write("### 🌐 المزامنة وحفظ الأرقام في السحابة")
-    if st.button("🔗 توليد النص السحابي لتثبيت الأرقام الحالية"):
+    # 🌐 توليد كود السحابة المحدث لحفظه للأبد
+    st.write("### 🌐 حفظ وتثبيت الأرقام أونلاين بالسحابة")
+    if st.button("🔗 توليد السطر السحابي"):
         cloud_text = json.dumps(st.session_state["master_inventory"], ensure_ascii=False)
-        st.info("قم بنسخ النص البرمجي الكامل الموجود في الصندوق بالأسفل وضعه داخل لوحة تحكم السيرفر (الخطوة 2):")
+        st.info("انسخ السطر التالي وضعه داخل الـ Secrets في حساب Streamlit الخاص بك ليبقى محفوظاً للأبد:")
         st.code(f'LIVE_INVENTORY = \'{cloud_text}\'', language="toml")
 
-# ------------------------------------------------------------
-# الصق بقية كود عرض الجدول الأصلي الخاص بك من هنا لتعمل الشاشة...
+# -------------------- عرض الجدول الرئيسي على الشاشة --------------------
+st.write("### 📊 المخزون الحالي في النظام أونلاين")
+df = pd.DataFrame.from_dict(st.session_state["master_inventory"], orient="index")
+st.dataframe(df, use_container_width=True)
